@@ -1,16 +1,17 @@
--- Task: Rank country origins of bands by the number of fans
--- The result will have two columns: origin (country) and nb_fans (total number of fans)
--- The result will be ordered by the number of fans in descending order
+-- Task: Rank country origins of bands ordered by the number of (non-unique) fans
 
-SELECT
-    origin,                               -- The country of origin of the band
-    SUM(nb_fans) AS nb_fans               -- The total number of fans from all bands in that country
-FROM
-    metal_bands                           -- The table that stores the metal bands data
-GROUP BY
-    origin                                -- Group the result by the country of origin
-ORDER BY
-    nb_fans DESC;                         -- Order the result by the number of fans in descending order
+-- Create a view to rank country origins based on the number of fans
+CREATE VIEW ranked_origins AS
+SELECT 
+    origin,
+    SUM(nb_fans) AS total_fans
+FROM 
+    metal_bands
+GROUP BY 
+    origin
+ORDER BY 
+    total_fans DESC;
 
--- End of script
+-- Select from the view to show the ranking of origins
+SELECT * FROM ranked_origins;
 
