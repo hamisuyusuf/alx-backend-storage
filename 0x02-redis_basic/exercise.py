@@ -12,15 +12,37 @@ import functools
 def count_calls(method: Callable) -> Callable:
     """
     Decorator to count how many times a method is called.
-
-    Returns Callable: The wrapped method with counting functionality.
     """
     @functools.wraps(method)
     def wrapper(self, *args, **kwargs):
-        """Wrapper function to increment the call count."""
         key = method.__qualname__
         self._redis.incr(key)
         return method(self, *args, **kwargs)
+    return wrapper
+
+
+def call_history(method: Callable) -> Callable:
+    """
+    Decorator to store the history of inputs and outputs for a method.
+    """
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        # Create the keys for inputs and outputs in Redis
+        input_key = f"{method.__qualname__}:inputs"
+        output_key = f"{method.__qualname__}:outputs"
+
+        # Store the input arguments in the inputs list
+        self._redis.rpush(input_key, str(args))
+
+        # Call the original method to get the output
+        result = method(self, *args, **kwargs)
+
+        # Store the output in the outputs list
+        self._redis.rpush(output_key, str(result))
+
+        # Return the original method's result
+        return result
+
     return wrapper
 
 
@@ -32,6 +54,7 @@ class Cache:
         self._redis = redis.Redis()
         self._redis.flushdb()
 
+    @call_history
     @count_calls
     def store(self, data: Union[str, bytes, int, float]) -> str:
         """
@@ -41,13 +64,9 @@ class Cache:
         self._redis.set(key, data)
         return key
 
-    def get(self, key: str, fn: Optional[Callable]
-            = None) -> Union[str, bytes, int, float, None]:
+    def get(self, key: str, fn: Optional[Callable] = None) -> Union[str, bytes, int, float, None]:
         """
-        Retrieve data from Redis by key and optionally
-          apply a conversion function.
-
-       return The retrieved data, optionally converted.
+        Retrieve data from Redis by key and optionally apply a conversion function.
         """
         data = self._redis.get(key)
         if data is None:
