@@ -46,6 +46,26 @@ def call_history(method: Callable) -> Callable:
     return wrapper
 
 
+def replay(method: Callable) -> None:
+    """
+    Display the history of calls of a particular function.
+    """
+    redis_instance = method.__self__._redis  # Access the Redis instance
+    method_name = method.__qualname__  # Get the qualified name of the method
+
+    # Retrieve the list of inputs and outputs from Redis
+    inputs = redis_instance.lrange(f"{method_name}:inputs", 0, -1)
+    outputs = redis_instance.lrange(f"{method_name}:outputs", 0, -1)
+
+    # Print the replay summary
+    print(f"{method_name} was called {len(inputs)} times:")
+
+    for inp, out in zip(inputs, outputs):
+        inp_str = inp.decode('utf-8')
+        out_str = out.decode('utf-8')
+        print(f"{method_name}(*{inp_str}) -> {out_str}")
+
+
 class Cache:
     """Cache class for storing and retrieving data in Redis."""
 
@@ -64,9 +84,11 @@ class Cache:
         self._redis.set(key, data)
         return key
 
-    def get(self, key: str, fn: Optional[Callable] = None) -> Union[str, bytes, int, float, None]:
+    def get(self, key: str, fn: Optional[Callable] = None
+            ) -> Union[str, bytes, int, float, None]:
         """
-        Retrieve data from Redis by key and optionally apply a conversion function.
+        Retrieve data from Redis by key and optionally
+          apply a conversion function.
         """
         data = self._redis.get(key)
         if data is None:
